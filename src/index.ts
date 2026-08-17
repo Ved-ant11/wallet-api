@@ -1,14 +1,17 @@
+import 'dotenv/config'
 import Fastify from 'fastify'
+import sql from './db/client'
 
 const app = Fastify({ logger: true })
 
-app.get('/health', async () => {
-  return { status: 'ok' }
-})
-
 const start = async () => {
   try {
-    await app.listen({ port: 3000 })
+    const res = await sql`SELECT 1`;
+    app.log.info('Database connected');
+    app.get('/health', async () => {
+      return { status: 'ok', ...res }
+    })
+    await app.listen({ port: Number(process.env.PORT) || 3000 })
   } catch (err) {
     app.log.error(err)
     process.exit(1)

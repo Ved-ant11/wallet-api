@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
 import sql from './db/client'
+import { authRoutes } from './routes/auth'
 
 const app = Fastify({ logger: true })
 
@@ -11,7 +12,8 @@ const start = async () => {
     app.get('/health', async () => {
       return { status: 'ok', ...res }
     })
-    await app.listen({ port: Number(process.env.PORT) || 3000 })
+    app.register(authRoutes);
+    await app.listen({ port: Number(process.env.PORT) || 3000 });
   } catch (err) {
     app.log.error(err)
     process.exit(1)

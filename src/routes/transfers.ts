@@ -19,6 +19,15 @@ export const transfersRoutes = async (app: FastifyInstance) => {
     const userId = req.user.user_id
 
     try {
+      const [existing] = await sql`
+        SELECT response FROM wallet.idempotency_keys
+        WHERE key = ${idempotencyKey} AND user_id = ${userId}
+      ` as { response: any }[];
+      
+      if (existing) {
+        return reply.status(200).send(existing.response)
+      }
+      
       const transfer = await sql.begin(async (tx) => {
         // lock sender wallet row
         const [senderWallet] = await tx`
@@ -76,11 +85,17 @@ export const transfersRoutes = async (app: FastifyInstance) => {
           VALUES (${receiver_wallet_id}, 'credit', ${amount}, ${newTransfer.transfer_id}, 'success')
         `
 
-        return {
+        const response = {
           transfer_id: newTransfer.transfer_id,
           amount,
           status: 'success',
         }
+        
+        await tx`
+          INSERT INTO wallet.idempotency_keys (key, user_id, response)
+          VALUES (${idempotencyKey}, ${userId}, ${JSON.stringify(response)})
+        `
+        return response;
       })
 
       return reply.status(201).send(transfer)
